@@ -1,7 +1,7 @@
 import { defineConfig } from '@apps-in-toss/web-framework/config';
 
 export default defineConfig({
-  appName: 'smoke-finder',
+  appName: 'smoking-area-finder',
   brand: {
     displayName: '연기공간',
     primaryColor: '#FF7A45',
