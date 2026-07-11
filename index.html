@@ -39,8 +39,9 @@
 
   header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 8px 10px;
     padding: 10px 16px;
     background: var(--panel);
     border-bottom: 1px solid #2b3540;
@@ -49,15 +50,19 @@
   }
   header .logo {
     width: 34px; height: 34px;
-    background: var(--accent-dim);
     border-radius: 10px;
-    display: grid; place-items: center;
-    font-size: 18px;
     flex-shrink: 0;
+    display: block;
   }
-  header h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
-  header p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
-  header .spacer { flex: 1; }
+  header .htitle { min-width: 0; }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; white-space: nowrap; }
+  header p  { font-size: 11px; color: var(--muted); margin-top: 1px; white-space: nowrap; }
+  header .hctrl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
 
   .radius-select {
     background: var(--panel2);
@@ -540,23 +545,24 @@
 <body>
 
 <header>
-  <div class="logo">🚬</div>
-  <div>
+  <img class="logo" src="icon-192.png" alt="너구리굴 찾기">
+  <div class="htitle">
     <h1>너구리굴 찾기</h1>
     <p>눈치 보지 않고, 당당하게</p>
   </div>
-  <div class="spacer"></div>
-  <select class="radius-select" id="radiusSel">
-    <option value="500">반경 500m</option>
-    <option value="1000" selected>반경 1km</option>
-    <option value="2000">반경 2km</option>
-    <option value="3000">반경 3km</option>
-  </select>
-  <button class="btn-locate" id="btnLocate">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-    내 위치
-  </button>
-  <button class="btn-report" id="btnReport">➕ 제보</button>
+  <div class="hctrl">
+    <select class="radius-select" id="radiusSel">
+      <option value="500">반경 500m</option>
+      <option value="1000" selected>반경 1km</option>
+      <option value="2000">반경 2km</option>
+      <option value="3000">반경 3km</option>
+    </select>
+    <button class="btn-locate" id="btnLocate">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      내 위치
+    </button>
+    <button class="btn-report" id="btnReport">➕ 제보</button>
+  </div>
 </header>
 
 <div class="searchbar">
@@ -922,7 +928,22 @@ async function locateMe(retry) {
 $('btnLocate').addEventListener('click', () => locateMe());
 $('radiusSel').addEventListener('change', () => { if (currentPos) searchSpots(); });
 
-/* ── 장소 검색 (Nominatim 지오코딩) ── */
+/* ── 장소 검색 (Photon: 연관도·부분일치·현위치 가중 / 실패 시 Nominatim 폴백) ── */
+function renderSearchResults(items) {
+  const box = $('searchResults');
+  box.innerHTML = '';
+  items.forEach((r) => {
+    const el = document.createElement('div');
+    el.className = 'sr-item';
+    el.innerHTML = `${r.title}<div class="sub">${r.sub}</div>`;
+    el.addEventListener('click', () => {
+      box.classList.remove('show');
+      $('searchInput').value = r.title;
+      setPosition(r.lat, r.lng, r.title);
+    });
+    box.appendChild(el);
+  });
+}
 async function doSearch() {
   const q = $('searchInput').value.trim();
   const box = $('searchResults');
@@ -930,29 +951,45 @@ async function doSearch() {
   box.innerHTML = '<div class="sr-item muted">🔎 검색 중…</div>';
   box.classList.add('show');
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=6&q=${encodeURIComponent(q)}`);
-    const list = await res.json();
-    if (!list.length) {
-      box.innerHTML = '<div class="sr-item muted">결과가 없어요 — 역/동/건물명으로 다시 검색해 보세요</div>';
-      return;
-    }
-    box.innerHTML = '';
-    list.forEach((r) => {
-      const parts = r.display_name.split(',').map((v) => v.trim());
-      const title = parts[0];
-      const sub = parts.slice(1, 4).join(' ');
-      const el = document.createElement('div');
-      el.className = 'sr-item';
-      el.innerHTML = `${title}<div class="sub">${sub}</div>`;
-      el.addEventListener('click', () => {
-        box.classList.remove('show');
-        $('searchInput').value = title;
-        setPosition(parseFloat(r.lat), parseFloat(r.lon), title);
-      });
-      box.appendChild(el);
+    const c = currentPos || DEFAULT_POS;
+    const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=12&lat=${c.lat}&lon=${c.lng}`, {
+      signal: AbortSignal.timeout ? AbortSignal.timeout(7000) : undefined,
     });
+    const d = await res.json();
+    const seen = new Set();
+    const items = (d.features || [])
+      .filter((f) => f.properties.countrycode === 'KR' && f.geometry && f.geometry.coordinates)
+      .map((f) => {
+        const p = f.properties;
+        const title = p.name || p.street || q;
+        const sub = [p.district, p.city, p.state].filter(Boolean).filter((v) => v !== title).join(' · ');
+        return { title, sub, lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] };
+      })
+      .filter((r) => {
+        const k = r.title + '|' + r.sub;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .slice(0, 6);
+    if (!items.length) throw new Error('empty');
+    renderSearchResults(items);
   } catch (e) {
-    box.innerHTML = '<div class="sr-item muted">검색 실패 — 잠시 후 다시 시도해 주세요</div>';
+    // 폴백: Nominatim
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=6&q=${encodeURIComponent(q)}`);
+      const list = await res.json();
+      if (!list.length) {
+        box.innerHTML = '<div class="sr-item muted">결과가 없어요 — 역/동/건물명으로 다시 검색해 보세요</div>';
+        return;
+      }
+      renderSearchResults(list.map((r) => {
+        const parts = r.display_name.split(',').map((v) => v.trim());
+        return { title: parts[0], sub: parts.slice(1, 4).join(' '), lat: parseFloat(r.lat), lng: parseFloat(r.lon) };
+      }));
+    } catch (e2) {
+      box.innerHTML = '<div class="sr-item muted">검색 실패 — 잠시 후 다시 시도해 주세요</div>';
+    }
   }
 }
 $('searchBtn').addEventListener('click', doSearch);

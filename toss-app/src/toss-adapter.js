@@ -4,11 +4,11 @@ import { Accuracy, getCurrentLocation } from '@apps-in-toss/web-framework';
 
 window.TossLocation = {
   getCurrentLocation: async () => {
-    // 권한이 거부된 상태면 토스 표준 다이얼로그로 재요청
+    // 'allowed'가 아니면(최초 미결정 포함) 토스 표준 다이얼로그로 권한 요청
     const perm = await getCurrentLocation.getPermission();
-    if (perm === 'denied') {
+    if (perm !== 'allowed') {
       const result = await getCurrentLocation.openPermissionDialog();
-      if (result === 'denied') throw new Error('위치 권한이 거부되었어요');
+      if (result !== 'allowed') throw new Error('위치 권한이 거부되었어요');
     }
     const loc = await getCurrentLocation({ accuracy: Accuracy.High });
     return loc.coords; // { latitude, longitude, ... }
