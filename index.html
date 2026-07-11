@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>연기공간 — 내 주변 흡연구역 찾기</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a2027">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="연기공간">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #101418;
+    --panel: #1a2027;
+    --panel2: #222a33;
+    --text: #e8edf2;
+    --muted: #8a97a5;
+    --accent: #ff7a45;
+    --accent-dim: rgba(255,122,69,.15);
+    --green: #4ade80;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Pretendard', -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── 헤더 ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid #2b3540;
+    z-index: 1000;
+    flex-shrink: 0;
+  }
+  header .logo {
+    width: 34px; height: 34px;
+    background: var(--accent-dim);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  header h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+  header p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  header .spacer { flex: 1; }
+
+  .radius-select {
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid #333f4c;
+    border-radius: 9px;
+    padding: 7px 10px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+  }
+  .btn-locate {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: transform .1s, opacity .2s;
+  }
+  .btn-locate:active { transform: scale(.96); }
+  .btn-locate:disabled { opacity: .5; cursor: wait; }
+
+  /* ── 본문 레이아웃 ── */
+  main { flex: 1; display: flex; min-height: 0; }
+  #map { flex: 1; min-width: 0; background: #0c0f13; }
+
+  aside {
+    width: 340px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-left: 1px solid #2b3540;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  aside .list-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #2b3540;
+    flex-shrink: 0;
+  }
+  aside .list-head h2 { font-size: 14px; font-weight: 700; }
+  aside .list-head span { color: var(--accent); }
+  aside .list-head p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  #results {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #results::-webkit-scrollbar { width: 6px; }
+  #results::-webkit-scrollbar-thumb { background: #333f4c; border-radius: 3px; }
+
+  .card {
+    background: var(--panel2);
+    border: 1px solid #2e3944;
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .card:hover, .card.active {
+    border-color: var(--accent);
+    background: #27303a;
+  }
+  .card .row1 {
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .card .name { font-size: 14px; font-weight: 600; flex: 1; line-height: 1.35; }
+  .card .dist {
+    font-size: 13px; font-weight: 700; color: var(--accent);
+    white-space: nowrap;
+  }
+  .card .meta {
+    margin-top: 6px;
+    font-size: 12px; color: var(--muted);
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .card .tag {
+    background: #1a2027;
+    border: 1px solid #333f4c;
+    border-radius: 6px;
+    padding: 2px 7px;
+  }
+  .card .walk { color: var(--green); }
+  .card .links {
+    margin-top: 8px;
+    display: flex; gap: 6px;
+  }
+  .card .links a {
+    font-size: 11.5px;
+    color: var(--text);
+    text-decoration: none;
+    background: #1a2027;
+    border: 1px solid #333f4c;
+    border-radius: 7px;
+    padding: 4px 9px;
+    transition: border-color .15s;
+  }
+  .card .links a:hover { border-color: var(--accent); color: var(--accent); }
+
+  .empty, .loading {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .empty .big { font-size: 34px; margin-bottom: 10px; }
+
+  /* ── 토스트 ── */
+  #toast {
+    position: fixed;
+    bottom: 22px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #2b3540;
+    color: var(--text);
+    padding: 11px 18px;
+    border-radius: 12px;
+    font-size: 13px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    z-index: 2000;
+    transition: transform .3s cubic-bezier(.2,.9,.3,1.2);
+    max-width: 88vw;
+    text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── 지도 마커/팝업 커스텀 ── */
+  .me-marker {
+    width: 18px; height: 18px;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 6px rgba(59,130,246,.25);
+  }
+  .smoke-marker {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border: 2.5px solid #fff;
+    border-radius: 50% 50% 50% 4px;
+    transform: rotate(-45deg);
+    display: grid; place-items: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,.4);
+  }
+  .smoke-marker span { transform: rotate(45deg); font-size: 14px; }
+  .smoke-marker.gov { background: #38bdf8; }
+  .leaflet-popup-content-wrapper {
+    background: var(--panel2); color: var(--text);
+    border-radius: 12px;
+  }
+  .leaflet-popup-tip { background: var(--panel2); }
+  .leaflet-popup-content { font-size: 13px; line-height: 1.5; margin: 12px 14px; }
+  .leaflet-popup-content b { color: var(--accent); }
+
+  .hint-banner {
+    position: absolute;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 900;
+    background: rgba(26,32,39,.92);
+    backdrop-filter: blur(6px);
+    border: 1px solid #333f4c;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* ── 모바일 ── */
+  @media (max-width: 720px) {
+    main { flex-direction: column; }
+    #map { flex: 1.2; }
+    aside {
+      width: 100%;
+      flex: 1;
+      border-left: none;
+      border-top: 1px solid #2b3540;
+    }
+    header h1 { font-size: 14px; }
+    header p { display: none; }
+    .hint-banner { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚬</div>
+  <div>
+    <h1>연기공간</h1>
+    <p>내 주변 흡연구역 찾기</p>
+  </div>
+  <div class="spacer"></div>
+  <select class="radius-select" id="radiusSel">
+    <option value="500">반경 500m</option>
+    <option value="1000" selected>반경 1km</option>
+    <option value="2000">반경 2km</option>
+    <option value="3000">반경 3km</option>
+  </select>
+  <button class="btn-locate" id="btnLocate">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+    내 위치
+  </button>
+</header>
+
+<main>
+  <div id="map">
+    <div class="hint-banner" id="hintBanner">지도를 클릭하면 그 지점 주변을 검색합니다</div>
+  </div>
+  <aside>
+    <div class="list-head">
+      <h2>주변 흡연구역 <span id="count">–</span></h2>
+      <p id="statusLine">위치를 확인하는 중…</p>
+    </div>
+    <div id="results">
+      <div class="loading">⏳ 위치 확인 중…</div>
+    </div>
+  </aside>
+</main>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const DEFAULT_POS = { lat: 37.5665, lng: 126.9780 }; // 서울시청 (위치 거부 시 폴백)
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+
+let map, meMarker, searchCircle;
+let spotMarkers = [];
+let currentPos = null;
+let searching = false;
+
+/* ── 공공데이터 (지자체 흡연구역, data.go.kr) ── */
+let koreaSpots = [];
+fetch('korea-spots.json')
+  .then((r) => r.ok ? r.json() : null)
+  .then((d) => {
+    if (d && d.spots) {
+      koreaSpots = d.spots;
+      console.log(`공공데이터 ${koreaSpots.length}개 지점 로드 (${d.updated})`);
+      if (currentPos && !searching) searchSpots(); // 이미 검색됐다면 병합 재검색
+    }
+  })
+  .catch(() => {});
+
+/* ── 서비스 워커 등록 (PWA) ── */
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+const $ = (id) => document.getElementById(id);
+
+/* ── 지도 초기화 ── */
+map = L.map('map', { zoomControl: true }).setView([DEFAULT_POS.lat, DEFAULT_POS.lng], 15);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  maxZoom: 19,
+}).addTo(map);
+
+map.on('click', (e) => {
+  setPosition(e.latlng.lat, e.latlng.lng, '지도에서 선택한 위치');
+});
+
+/* ── 토스트 ── */
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ── 위치 설정 + 검색 트리거 ── */
+function setPosition(lat, lng, label) {
+  currentPos = { lat, lng };
+  if (meMarker) meMarker.remove();
+  meMarker = L.marker([lat, lng], {
+    icon: L.divIcon({ className: '', html: '<div class="me-marker"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }),
+    zIndexOffset: 1000,
+  }).addTo(map).bindPopup(`<b>${label}</b>`);
+  map.setView([lat, lng], map.getZoom() < 14 ? 15 : map.getZoom());
+  searchSpots();
+}
+
+/* ── 현재 위치 ── */
+function locateMe() {
+  const btn = $('btnLocate');
+  btn.disabled = true;
+  $('statusLine').textContent = '위치를 확인하는 중…';
+  if (!navigator.geolocation) {
+    toast('이 브라우저는 위치 기능을 지원하지 않아요. 지도를 클릭해 검색하세요.');
+    btn.disabled = false;
+    setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      btn.disabled = false;
+      setPosition(pos.coords.latitude, pos.coords.longitude, '내 위치');
+      toast('📍 현재 위치를 찾았어요');
+    },
+    (err) => {
+      btn.disabled = false;
+      const msgs = {
+        1: '위치 권한이 거부되었어요. 지도를 클릭해서 위치를 지정할 수 있어요.',
+        2: '위치를 가져올 수 없어요. 지도를 클릭해 검색하세요.',
+        3: '위치 확인이 시간 초과됐어요. 다시 시도하거나 지도를 클릭하세요.',
+      };
+      toast(msgs[err.code] || '위치 확인 실패. 지도를 클릭해 검색하세요.');
+      setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+  );
+}
+$('btnLocate').addEventListener('click', locateMe);
+$('radiusSel').addEventListener('change', () => { if (currentPos) searchSpots(); });
+
+/* ── 거리 계산 (하버사인) ── */
+function distM(a, b) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
+  const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*toR) * Math.cos(b.lat*toR) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const fmtDist = (m) => m < 1000 ? `${Math.round(m)}m` : `${(m/1000).toFixed(1)}km`;
+const walkMin = (m) => Math.max(1, Math.round(m / 67)); // 도보 약 4km/h
+
+/* ── Overpass 검색 ── */
+async function searchSpots() {
+  if (!currentPos || searching) return;
+  searching = true;
+  const radius = +$('radiusSel').value;
+  const { lat, lng } = currentPos;
+
+  $('results').innerHTML = '<div class="loading">🔎 주변 흡연구역을 검색하는 중…</div>';
+  $('statusLine').textContent = `반경 ${fmtDist(radius)} 검색 중…`;
+  $('count').textContent = '–';
+
+  if (searchCircle) searchCircle.remove();
+  searchCircle = L.circle([lat, lng], {
+    radius, color: '#ff7a45', weight: 1.5, opacity: .5, fillColor: '#ff7a45', fillOpacity: .06,
+  }).addTo(map);
+
+  const query = `
+    [out:json][timeout:20];
+    (
+      node["amenity"="smoking_area"](around:${radius},${lat},${lng});
+      way["amenity"="smoking_area"](around:${radius},${lat},${lng});
+      node["smoking"="dedicated"](around:${radius},${lat},${lng});
+    );
+    out center tags;
+  `;
+
+  let data = null, lastErr = null;
+  for (const ep of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(ep, { method: 'POST', body: 'data=' + encodeURIComponent(query) });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      data = await res.json();
+      break;
+    } catch (e) { lastErr = e; }
+  }
+  searching = false;
+
+  // OSM 결과 (실패 시 빈 배열 — 공공데이터만으로도 표시)
+  const seen = new Set();
+  const osmSpots = (data ? data.elements : [])
+    .map((el) => {
+      const p = el.type === 'node' ? { lat: el.lat, lng: el.lon } : { lat: el.center?.lat, lng: el.center?.lon };
+      if (p.lat == null) return null;
+      const key = p.lat.toFixed(5) + ',' + p.lng.toFixed(5);
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return { ...p, tags: el.tags || {}, src: 'osm', d: distM(currentPos, p) };
+    })
+    .filter(Boolean);
+
+  // 공공데이터 병합 (반경 내 + OSM 지점과 30m 이내 중복 제거)
+  const govSpots = koreaSpots
+    .map((s) => ({ lat: s.la, lng: s.lo, name: s.n, srcName: s.s, tags: {}, src: 'gov', d: distM(currentPos, { lat: s.la, lng: s.lo }) }))
+    .filter((s) => s.d <= radius)
+    .filter((s) => !osmSpots.some((o) => distM(s, o) < 30));
+
+  const spots = [...osmSpots, ...govSpots].sort((a, b) => a.d - b.d);
+
+  if (!data && !spots.length) {
+    $('results').innerHTML = `<div class="empty"><div class="big">⚠️</div>검색 서버에 연결하지 못했어요.<br>잠시 후 다시 시도해 주세요.<br><small style="color:#5a6673">${lastErr}</small></div>`;
+    $('statusLine').textContent = '검색 실패';
+    return;
+  }
+  if (!data) toast('OSM 서버 연결 실패 — 공공데이터만 표시 중');
+
+  renderResults(spots, radius);
+}
+
+/* ── 결과 렌더링 ── */
+function spotName(s) {
+  if (s.src === 'gov') return s.name || '흡연구역';
+  const t = s.tags;
+  return t['name:ko'] || t.name || (t.shelter === 'yes' ? '흡연 부스' : '흡연구역');
+}
+function spotTags(s) {
+  const out = [];
+  if (s.src === 'gov') { out.push('🏛 공공데이터'); return out; }
+  const t = s.tags;
+  if (t.shelter === 'yes' || t.covered === 'yes') out.push('🏠 지붕 있음');
+  if (t.indoor === 'yes') out.push('실내');
+  if (t.access === 'private' || t.access === 'customers') out.push('🔒 이용 제한');
+  if (t.bin === 'yes') out.push('🗑 재떨이');
+  if (t.lit === 'yes') out.push('💡 조명');
+  return out;
+}
+
+function renderResults(spots, radius) {
+  spotMarkers.forEach((m) => m.remove());
+  spotMarkers = [];
+  $('count').textContent = `${spots.length}곳`;
+  $('statusLine').textContent = `반경 ${fmtDist(radius)} 이내 · 가까운 순`;
+
+  const wrap = $('results');
+  if (!spots.length) {
+    wrap.innerHTML = `<div class="empty"><div class="big">🍃</div>반경 ${fmtDist(radius)} 안에<br>등록된 흡연구역이 없어요.<br><br>반경을 넓히거나 다른 위치를<br>지도에서 클릭해 보세요.<br><br><small style="color:#5a6673">데이터: OpenStreetMap (지역별로 등록량 차이가 있어요)</small></div>`;
+    return;
+  }
+
+  wrap.innerHTML = '';
+  spots.forEach((s, i) => {
+    // 마커
+    const mk = L.marker([s.lat, s.lng], {
+      icon: L.divIcon({ className: '', html: `<div class="smoke-marker${s.src === 'gov' ? ' gov' : ''}"><span>🚬</span></div>`, iconSize: [30, 30], iconAnchor: [15, 28] }),
+    }).addTo(map).bindPopup(`<b>${spotName(s)}</b><br>${fmtDist(s.d)} · 도보 약 ${walkMin(s.d)}분`);
+    spotMarkers.push(mk);
+
+    // 카드
+    const card = document.createElement('div');
+    card.className = 'card';
+    const tags = spotTags(s).map((t) => `<span class="tag">${t}</span>`).join('');
+    card.innerHTML = `
+      <div class="row1">
+        <div class="name">${spotName(s)}</div>
+        <div class="dist">${fmtDist(s.d)}</div>
+      </div>
+      <div class="meta">
+        <span class="walk">🚶 도보 약 ${walkMin(s.d)}분</span>
+        ${tags}
+      </div>
+      <div class="links">
+        <a href="https://map.kakao.com/link/to/${encodeURIComponent(spotName(s))},${s.lat},${s.lng}" target="_blank" rel="noopener">카카오맵 길찾기</a>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=walking" target="_blank" rel="noopener">구글맵</a>
+      </div>`;
+    card.addEventListener('click', (e) => {
+      if (e.target.tagName === 'A') return;
+      document.querySelectorAll('.card.active').forEach((c) => c.classList.remove('active'));
+      card.classList.add('active');
+      map.setView([s.lat, s.lng], 17);
+      mk.openPopup();
+    });
+    wrap.appendChild(card);
+
+    // 마커 클릭 → 카드 하이라이트
+    mk.on('click', () => {
+      document.querySelectorAll('.card.active').forEach((c) => c.classList.remove('active'));
+      card.classList.add('active');
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  });
+
+  // 전체가 보이게 맞춤 (상위 10곳 기준)
+  const pts = spots.slice(0, 10).map((s) => [s.lat, s.lng]);
+  pts.push([currentPos.lat, currentPos.lng]);
+  map.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
+}
+
+/* ── 시작 ── */
+locateMe();
+setTimeout(() => { const b = $('hintBanner'); if (b) b.style.opacity = '0', b.style.transition = 'opacity 1s'; }, 6000);
+</script>
+</body>
+</html>
