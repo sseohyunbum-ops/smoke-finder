@@ -1,0 +1,17 @@
+{
+  "name": "smoke-finder-toss",
+  "version": "1.0.0",
+  "private": true,
+  "description": "연기공간 — 앱인토스 미니앱 래퍼",
+  "scripts": {
+    "sync": "node sync.js",
+    "dev": "ait dev",
+    "build": "ait build"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "@apps-in-toss/web-framework": "^2.10.5",
+    "vite": "^8.1.4"
+  },
+  "devDependencies": {}
+}
