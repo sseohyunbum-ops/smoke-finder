@@ -676,6 +676,7 @@ window.navermap_authFailure = function () {
     loadNaver('ncpClientId');
   } else {
     $('authFail').style.display = 'block';
+    $('authFail').insertAdjacentHTML('beforeend', `<br><br>등록할 주소: <b>${location.origin}</b>`);
     $('results').innerHTML = '<div class="empty"><div class="big">🗺️</div>지도 인증 실패<br>NCP 콘솔에서 Web 서비스 URL을 확인해 주세요.</div>';
   }
 };
