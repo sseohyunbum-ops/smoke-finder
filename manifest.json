@@ -1,6 +1,6 @@
 {
-  "name": "연기공간 — 내 주변 흡연구역",
-  "short_name": "연기공간",
+  "name": "너구리굴 찾기 — 내 주변 흡연구역",
+  "short_name": "너구리굴",
   "description": "현재 위치 기준 가까운 흡연구역을 찾아주는 앱",
   "start_url": "./index.html",
   "scope": "./",

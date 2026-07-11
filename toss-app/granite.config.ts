@@ -3,7 +3,7 @@ import { defineConfig } from '@apps-in-toss/web-framework/config';
 export default defineConfig({
   appName: 'smoking-area-finder',
   brand: {
-    displayName: '연기공간',
+    displayName: '너구리굴 찾기',
     primaryColor: '#FF7A45',
     icon: 'https://sseohyunbum-ops.github.io/smoke-finder/icon-512.png',
   },
