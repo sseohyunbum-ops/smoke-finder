@@ -12,7 +12,6 @@
 <meta name="apple-mobile-web-app-title" content="연기공간">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
     --bg: #101418;
@@ -23,6 +22,8 @@
     --accent: #ff7a45;
     --accent-dim: rgba(255,122,69,.15);
     --green: #4ade80;
+    --naver: #03c75a;
+    --blue: #2f6fef;
     --radius: 14px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -36,12 +37,11 @@
     overflow: hidden;
   }
 
-  /* ── 헤더 ── */
   header {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: 10px 16px;
     background: var(--panel);
     border-bottom: 1px solid #2b3540;
     z-index: 1000;
@@ -53,6 +53,7 @@
     border-radius: 10px;
     display: grid; place-items: center;
     font-size: 18px;
+    flex-shrink: 0;
   }
   header h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
   header p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
@@ -79,13 +80,118 @@
     cursor: pointer;
     display: flex; align-items: center; gap: 6px;
     transition: transform .1s, opacity .2s;
+    flex-shrink: 0;
   }
   .btn-locate:active { transform: scale(.96); }
   .btn-locate:disabled { opacity: .5; cursor: wait; }
 
-  /* ── 본문 레이아웃 ── */
+  /* 검색 바 */
+  .searchbar {
+    position: relative;
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid #2b3540;
+    z-index: 999;
+    flex-shrink: 0;
+  }
+  .searchbar input {
+    flex: 1;
+    background: var(--panel2);
+    border: 1px solid #333f4c;
+    border-radius: 10px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 13.5px;
+    outline: none;
+  }
+  .searchbar input:focus { border-color: var(--accent); }
+  .searchbar button {
+    background: var(--panel2);
+    border: 1px solid #333f4c;
+    border-radius: 10px;
+    color: var(--text);
+    padding: 0 14px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .searchbar button:hover { border-color: var(--accent); }
+  #searchResults {
+    display: none;
+    position: absolute;
+    top: calc(100% - 4px);
+    left: 16px; right: 16px;
+    background: var(--panel2);
+    border: 1px solid #333f4c;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+    z-index: 1500;
+  }
+  #searchResults.show { display: block; }
+  .sr-item {
+    padding: 11px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 1px solid #2b3540;
+    line-height: 1.4;
+  }
+  .sr-item:last-child { border-bottom: none; }
+  .sr-item:hover { background: #2a3440; }
+  .sr-item .sub { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+  .sr-item.muted { color: var(--muted); cursor: default; }
+
   main { flex: 1; display: flex; min-height: 0; }
-  #map { flex: 1; min-width: 0; background: #0c0f13; }
+  #mapWrap { flex: 1; min-width: 0; position: relative; }
+  #map { width: 100%; height: 100%; background: #e8eaed; }
+
+  /* 지도 위 경로 정보 바 */
+  #routeBar {
+    display: none;
+    position: absolute;
+    left: 50%; bottom: 18px;
+    transform: translateX(-50%);
+    background: rgba(20,26,32,.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid #333f4c;
+    border-radius: 14px;
+    padding: 10px 14px;
+    z-index: 500;
+    box-shadow: 0 10px 32px rgba(0,0,0,.45);
+    max-width: calc(100% - 24px);
+    white-space: nowrap;
+  }
+  #routeBar.show { display: flex; align-items: center; gap: 10px; }
+  #routeBar .walk { font-size: 14px; font-weight: 700; color: var(--green); }
+  #routeBar .dist { font-size: 12px; color: var(--muted); }
+  #routeBar a {
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #fff;
+  }
+  #routeBar a.naver { background: var(--naver); }
+  #routeBar a.kakao { background: #fee500; color: #191919; }
+  #routeBar .close {
+    background: none; border: none; color: var(--muted);
+    font-size: 15px; cursor: pointer; padding: 0 2px;
+  }
+
+  #authFail {
+    display: none;
+    position: absolute; inset: 0;
+    background: var(--bg);
+    z-index: 600;
+    padding: 40px 24px;
+    text-align: center;
+    font-size: 13.5px;
+    line-height: 1.9;
+    color: var(--muted);
+  }
+  #authFail b { color: var(--accent); }
 
   aside {
     width: 340px;
@@ -128,14 +234,20 @@
     border-color: var(--accent);
     background: #27303a;
   }
-  .card .row1 {
-    display: flex; align-items: baseline; gap: 8px;
+  .card .row1 { display: flex; align-items: baseline; gap: 8px; }
+  .card .num {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 11.5px; font-weight: 700;
+    display: grid; place-items: center;
+    align-self: flex-start;
   }
+  .card .num.gov { background: #38bdf8; }
   .card .name { font-size: 14px; font-weight: 600; flex: 1; line-height: 1.35; }
-  .card .dist {
-    font-size: 13px; font-weight: 700; color: var(--accent);
-    white-space: nowrap;
-  }
+  .card .dist { font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
   .card .meta {
     margin-top: 6px;
     font-size: 12px; color: var(--muted);
@@ -148,10 +260,7 @@
     padding: 2px 7px;
   }
   .card .walk { color: var(--green); }
-  .card .links {
-    margin-top: 8px;
-    display: flex; gap: 6px;
-  }
+  .card .links { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
   .card .links a {
     font-size: 11.5px;
     color: var(--text);
@@ -163,6 +272,7 @@
     transition: border-color .15s;
   }
   .card .links a:hover { border-color: var(--accent); color: var(--accent); }
+  .card .links a.nv { border-color: #1e7a44; color: #4ade80; }
 
   .empty, .loading {
     padding: 40px 20px;
@@ -173,7 +283,6 @@
   }
   .empty .big { font-size: 34px; margin-bottom: 10px; }
 
-  /* ── 토스트 ── */
   #toast {
     position: fixed;
     bottom: 22px; left: 50%;
@@ -191,15 +300,38 @@
   }
   #toast.show { transform: translateX(-50%) translateY(0); }
 
-  /* ── 지도 마커/팝업 커스텀 ── */
-  .me-marker {
-    width: 18px; height: 18px;
-    background: #3b82f6;
-    border: 3px solid #fff;
+  /* 지도 마커 (HTML 아이콘) */
+  .me-wrap { position: relative; width: 22px; height: 22px; }
+  .me-pulse {
+    position: absolute; inset: -14px;
     border-radius: 50%;
-    box-shadow: 0 0 0 6px rgba(59,130,246,.25);
+    background: rgba(47,111,239,.3);
+    animation: mePulse 2s ease-out infinite;
   }
-  .smoke-marker {
+  @keyframes mePulse {
+    0% { transform: scale(.4); opacity: 1; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+  .me-dot {
+    position: absolute; inset: 0;
+    background: var(--blue);
+    border: 3.5px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0,0,0,.4);
+  }
+  .me-label {
+    position: absolute;
+    top: -26px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--blue);
+    color: #fff;
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 7px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3);
+  }
+  .pin {
     width: 30px; height: 30px;
     background: var(--accent);
     border: 2.5px solid #fff;
@@ -207,34 +339,38 @@
     transform: rotate(-45deg);
     display: grid; place-items: center;
     box-shadow: 0 3px 10px rgba(0,0,0,.4);
+    cursor: pointer;
   }
-  .smoke-marker span { transform: rotate(45deg); font-size: 14px; }
-  .smoke-marker.gov { background: #38bdf8; }
-  .leaflet-popup-content-wrapper {
-    background: var(--panel2); color: var(--text);
-    border-radius: 12px;
+  .pin span {
+    transform: rotate(45deg);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 800;
   }
-  .leaflet-popup-tip { background: var(--panel2); }
-  .leaflet-popup-content { font-size: 13px; line-height: 1.5; margin: 12px 14px; }
-  .leaflet-popup-content b { color: var(--accent); }
-
-  .hint-banner {
-    position: absolute;
-    top: 12px; left: 50%;
-    transform: translateX(-50%);
-    z-index: 900;
-    background: rgba(26,32,39,.92);
-    backdrop-filter: blur(6px);
+  .pin.gov { background: #38bdf8; }
+  .pin.sel {
+    background: var(--naver);
+    width: 38px; height: 38px;
+    border-width: 3px;
+    z-index: 200;
+  }
+  .pin.sel span { font-size: 15px; }
+  .iw {
+    background: var(--panel2);
+    color: var(--text);
     border: 1px solid #333f4c;
-    padding: 8px 14px;
-    border-radius: 10px;
-    font-size: 12px;
-    color: var(--muted);
-    pointer-events: none;
-    white-space: nowrap;
+    border-radius: 12px;
+    padding: 10px 13px;
+    font-size: 13px;
+    line-height: 1.55;
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    max-width: 240px;
   }
+  .iw b { color: var(--accent); }
+  .iw .g { color: var(--green); font-weight: 700; }
 
-  /* ── 위치 권한 안내 모달 ── */
+  /* 위치 권한 안내 모달 */
   #permModal {
     position: fixed; inset: 0;
     background: rgba(0,0,0,.6);
@@ -255,11 +391,7 @@
   }
   #permModal h3 { font-size: 16px; margin-bottom: 4px; }
   #permModal .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
-  #permModal ol {
-    margin: 0 0 16px 18px;
-    font-size: 13.5px;
-    line-height: 2;
-  }
+  #permModal ol { margin: 0 0 16px 18px; font-size: 13.5px; line-height: 2; }
   #permModal ol b { color: var(--accent); }
   #permModal .btns { display: flex; gap: 8px; }
   #permModal button {
@@ -274,10 +406,9 @@
   #permModal .retry { background: var(--accent); color: #fff; }
   #permModal .close { background: var(--panel2); color: var(--text); border: 1px solid #333f4c; }
 
-  /* ── 모바일 ── */
   @media (max-width: 720px) {
     main { flex-direction: column; }
-    #map { flex: 1.2; }
+    #mapWrap { flex: 1.25; }
     aside {
       width: 100%;
       flex: 1;
@@ -286,7 +417,8 @@
     }
     header h1 { font-size: 14px; }
     header p { display: none; }
-    .hint-banner { font-size: 11px; }
+    #routeBar { bottom: 12px; padding: 8px 11px; gap: 8px; }
+    #routeBar .walk { font-size: 13px; }
   }
 </style>
 </head>
@@ -311,9 +443,28 @@
   </button>
 </header>
 
+<div class="searchbar">
+  <input id="searchInput" placeholder="장소·주소 검색 (예: 강남역, 홍대입구역)" autocomplete="off">
+  <button id="searchBtn">🔍</button>
+  <div id="searchResults"></div>
+</div>
+
 <main>
-  <div id="map">
-    <div class="hint-banner" id="hintBanner">지도를 클릭하면 그 지점 주변을 검색합니다</div>
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div id="routeBar">
+      <span class="walk" id="rbWalk"></span>
+      <span class="dist" id="rbDist"></span>
+      <a class="naver" id="rbNaver" target="_blank" rel="noopener">네이버 도보</a>
+      <a class="kakao" id="rbKakao" target="_blank" rel="noopener">카카오맵</a>
+      <button class="close" id="rbClose">✕</button>
+    </div>
+    <div id="authFail">
+      <div style="font-size:36px;margin-bottom:12px">🗺️</div>
+      네이버 지도 인증에 실패했어요.<br>
+      NCP 콘솔 → Application 설정의 <b>Web 서비스 URL</b>에<br>
+      <b>이 사이트 주소</b>가 등록되어 있는지 확인해 주세요.
+    </div>
   </div>
   <aside>
     <div class="list-head">
@@ -321,7 +472,7 @@
       <p id="statusLine">위치를 확인하는 중…</p>
     </div>
     <div id="results">
-      <div class="loading">⏳ 위치 확인 중…</div>
+      <div class="loading">⏳ 지도를 불러오는 중…</div>
     </div>
   </aside>
 </main>
@@ -340,49 +491,58 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const DEFAULT_POS = { lat: 37.5665, lng: 126.9780 }; // 서울시청 (위치 거부 시 폴백)
+const NCP_KEY = '4gewyu6a4h';
+const DEFAULT_POS = { lat: 37.5665, lng: 126.9780 };
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
 
-let map, meMarker, searchCircle;
+let map, meMarker, searchCircle, routeLine, infoWin;
 let spotMarkers = [];
+let currentSpots = [];
 let currentPos = null;
 let searching = false;
+let selectedIdx = -1;
 
-/* ── 공공데이터 (지자체 흡연구역, data.go.kr) ── */
+const $ = (id) => document.getElementById(id);
+
+/* ── 공공데이터 로드 ── */
 let koreaSpots = [];
 fetch('korea-spots.json')
   .then((r) => r.ok ? r.json() : null)
   .then((d) => {
     if (d && d.spots) {
       koreaSpots = d.spots;
-      console.log(`공공데이터 ${koreaSpots.length}개 지점 로드 (${d.updated})`);
-      if (currentPos && !searching) searchSpots(); // 이미 검색됐다면 병합 재검색
+      if (currentPos && !searching) searchSpots();
     }
   })
   .catch(() => {});
 
-/* ── 서비스 워커 등록 (PWA) ── */
+/* ── 서비스 워커 ── */
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-const $ = (id) => document.getElementById(id);
-
-/* ── 지도 초기화 ── */
-map = L.map('map', { zoomControl: true }).setView([DEFAULT_POS.lat, DEFAULT_POS.lng], 15);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap &copy; CARTO',
-  maxZoom: 19,
-}).addTo(map);
-
-map.on('click', (e) => {
-  setPosition(e.latlng.lat, e.latlng.lng, '지도에서 선택한 위치');
-});
+/* ── 네이버 지도 로드 (신규 ncpKeyId → 실패 시 구형 ncpClientId 재시도) ── */
+let triedOldParam = false;
+window.navermap_authFailure = function () {
+  if (!triedOldParam) {
+    triedOldParam = true;
+    loadNaver('ncpClientId');
+  } else {
+    $('authFail').style.display = 'block';
+    $('results').innerHTML = '<div class="empty"><div class="big">🗺️</div>지도 인증 실패<br>NCP 콘솔에서 Web 서비스 URL을 확인해 주세요.</div>';
+  }
+};
+function loadNaver(param) {
+  const s = document.createElement('script');
+  s.src = `https://oapi.map.naver.com/openapi/v3/maps.js?${param}=${NCP_KEY}`;
+  s.onload = () => { if (window.naver && naver.maps) initApp(); };
+  document.head.appendChild(s);
+}
+loadNaver('ncpKeyId');
 
 /* ── 토스트 ── */
 let toastTimer;
@@ -394,19 +554,49 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-/* ── 위치 설정 + 검색 트리거 ── */
+/* ── 앱 초기화 (지도 준비 후) ── */
+function initApp() {
+  map = new naver.maps.Map('map', {
+    center: new naver.maps.LatLng(DEFAULT_POS.lat, DEFAULT_POS.lng),
+    zoom: 15,
+    minZoom: 7,
+    mapDataControl: false,
+    scaleControl: false,
+    logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
+  });
+  infoWin = new naver.maps.InfoWindow({
+    content: '',
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    disableAnchor: true,
+    pixelOffset: new naver.maps.Point(0, -12),
+  });
+  naver.maps.Event.addListener(map, 'click', (e) => {
+    setPosition(e.coord.lat(), e.coord.lng(), '지도에서 선택한 위치');
+  });
+  locateMe();
+}
+
+/* ── 위치 설정 + 검색 ── */
 function setPosition(lat, lng, label) {
   currentPos = { lat, lng };
-  if (meMarker) meMarker.remove();
-  meMarker = L.marker([lat, lng], {
-    icon: L.divIcon({ className: '', html: '<div class="me-marker"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }),
-    zIndexOffset: 1000,
-  }).addTo(map).bindPopup(`<b>${label}</b>`);
-  map.setView([lat, lng], map.getZoom() < 14 ? 15 : map.getZoom());
+  clearRoute();
+  if (meMarker) meMarker.setMap(null);
+  meMarker = new naver.maps.Marker({
+    position: new naver.maps.LatLng(lat, lng),
+    map,
+    zIndex: 300,
+    icon: {
+      content: `<div class="me-wrap"><div class="me-pulse"></div><div class="me-dot"></div><div class="me-label">${label === '내 위치' ? '내 위치' : '검색 위치'}</div></div>`,
+      anchor: new naver.maps.Point(11, 11),
+    },
+  });
+  map.setCenter(new naver.maps.LatLng(lat, lng));
+  if (map.getZoom() < 14) map.setZoom(15);
   searchSpots();
 }
 
-/* ── 위치 권한 안내 모달 ── */
+/* ── 위치 권한 안내 ── */
 function permSteps() {
   const ua = navigator.userAgent;
   if (/iPhone|iPad/.test(ua)) {
@@ -448,12 +638,11 @@ async function locateMe(retry) {
   btn.disabled = true;
   $('statusLine').textContent = '위치를 확인하는 중…';
   if (!navigator.geolocation) {
-    toast('이 브라우저는 위치 기능을 지원하지 않아요. 지도를 클릭해 검색하세요.');
+    toast('이 브라우저는 위치 기능을 지원하지 않아요.');
     btn.disabled = false;
     setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
     return;
   }
-  // 권한이 이미 차단 상태면 브라우저가 팝업을 안 띄우므로 해제 안내를 먼저 보여준다
   if (navigator.permissions && navigator.permissions.query) {
     try {
       const st = await navigator.permissions.query({ name: 'geolocation' });
@@ -464,7 +653,7 @@ async function locateMe(retry) {
         if (!currentPos) setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
         return;
       }
-    } catch (e) { /* 미지원 브라우저는 그냥 진행 */ }
+    } catch (e) {}
   }
   navigator.geolocation.getCurrentPosition(
     (pos) => {
@@ -480,11 +669,7 @@ async function locateMe(retry) {
         if (!currentPos) setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
         return;
       }
-      const msgs = {
-        2: '위치를 가져올 수 없어요. 지도를 클릭해 검색하세요.',
-        3: '위치 확인이 시간 초과됐어요. 다시 시도하거나 지도를 클릭하세요.',
-      };
-      toast(msgs[err.code] || '위치 확인 실패. 지도를 클릭해 검색하세요.');
+      toast(err.code === 3 ? '위치 확인 시간 초과 — 다시 시도해 주세요' : '위치를 가져올 수 없어요');
       if (!currentPos) setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: retry ? 0 : 60000 }
@@ -493,7 +678,46 @@ async function locateMe(retry) {
 $('btnLocate').addEventListener('click', () => locateMe());
 $('radiusSel').addEventListener('change', () => { if (currentPos) searchSpots(); });
 
-/* ── 거리 계산 (하버사인) ── */
+/* ── 장소 검색 (Nominatim 지오코딩) ── */
+async function doSearch() {
+  const q = $('searchInput').value.trim();
+  const box = $('searchResults');
+  if (!q) { box.classList.remove('show'); return; }
+  box.innerHTML = '<div class="sr-item muted">🔎 검색 중…</div>';
+  box.classList.add('show');
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=6&q=${encodeURIComponent(q)}`);
+    const list = await res.json();
+    if (!list.length) {
+      box.innerHTML = '<div class="sr-item muted">결과가 없어요 — 역/동/건물명으로 다시 검색해 보세요</div>';
+      return;
+    }
+    box.innerHTML = '';
+    list.forEach((r) => {
+      const parts = r.display_name.split(',').map((v) => v.trim());
+      const title = parts[0];
+      const sub = parts.slice(1, 4).join(' ');
+      const el = document.createElement('div');
+      el.className = 'sr-item';
+      el.innerHTML = `${title}<div class="sub">${sub}</div>`;
+      el.addEventListener('click', () => {
+        box.classList.remove('show');
+        $('searchInput').value = title;
+        setPosition(parseFloat(r.lat), parseFloat(r.lon), title);
+      });
+      box.appendChild(el);
+    });
+  } catch (e) {
+    box.innerHTML = '<div class="sr-item muted">검색 실패 — 잠시 후 다시 시도해 주세요</div>';
+  }
+}
+$('searchBtn').addEventListener('click', doSearch);
+$('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.searchbar')) $('searchResults').classList.remove('show');
+});
+
+/* ── 거리/시간 ── */
 function distM(a, b) {
   const R = 6371000, toR = Math.PI / 180;
   const dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
@@ -501,9 +725,9 @@ function distM(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 const fmtDist = (m) => m < 1000 ? `${Math.round(m)}m` : `${(m/1000).toFixed(1)}km`;
-const walkMin = (m) => Math.max(1, Math.round(m / 67)); // 도보 약 4km/h
+const walkMin = (m) => Math.max(1, Math.round(m / 67));
 
-/* ── Overpass 검색 ── */
+/* ── 흡연구역 검색 ── */
 async function searchSpots() {
   if (!currentPos || searching) return;
   searching = true;
@@ -514,33 +738,31 @@ async function searchSpots() {
   $('statusLine').textContent = `반경 ${fmtDist(radius)} 검색 중…`;
   $('count').textContent = '–';
 
-  if (searchCircle) searchCircle.remove();
-  searchCircle = L.circle([lat, lng], {
-    radius, color: '#ff7a45', weight: 1.5, opacity: .5, fillColor: '#ff7a45', fillOpacity: .06,
-  }).addTo(map);
+  if (searchCircle) searchCircle.setMap(null);
+  searchCircle = new naver.maps.Circle({
+    map,
+    center: new naver.maps.LatLng(lat, lng),
+    radius,
+    strokeColor: '#ff7a45',
+    strokeWeight: 1.5,
+    strokeOpacity: 0.5,
+    fillColor: '#ff7a45',
+    fillOpacity: 0.05,
+  });
 
-  const query = `
-    [out:json][timeout:20];
-    (
-      node["amenity"="smoking_area"](around:${radius},${lat},${lng});
-      way["amenity"="smoking_area"](around:${radius},${lat},${lng});
-      node["smoking"="dedicated"](around:${radius},${lat},${lng});
-    );
-    out center tags;
-  `;
+  const query = `[out:json][timeout:20];(node["amenity"="smoking_area"](around:${radius},${lat},${lng});way["amenity"="smoking_area"](around:${radius},${lat},${lng});node["smoking"="dedicated"](around:${radius},${lat},${lng}););out center tags;`;
 
-  let data = null, lastErr = null;
+  let data = null;
   for (const ep of OVERPASS_ENDPOINTS) {
     try {
       const res = await fetch(ep, { method: 'POST', body: 'data=' + encodeURIComponent(query) });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       data = await res.json();
       break;
-    } catch (e) { lastErr = e; }
+    } catch (e) {}
   }
   searching = false;
 
-  // OSM 결과 (실패 시 빈 배열 — 공공데이터만으로도 표시)
   const seen = new Set();
   const osmSpots = (data ? data.elements : [])
     .map((el) => {
@@ -553,16 +775,15 @@ async function searchSpots() {
     })
     .filter(Boolean);
 
-  // 공공데이터 병합 (반경 내 + OSM 지점과 30m 이내 중복 제거)
   const govSpots = koreaSpots
-    .map((s) => ({ lat: s.la, lng: s.lo, name: s.n, srcName: s.s, tags: {}, src: 'gov', d: distM(currentPos, { lat: s.la, lng: s.lo }) }))
+    .map((s) => ({ lat: s.la, lng: s.lo, name: s.n, tags: {}, src: 'gov', d: distM(currentPos, { lat: s.la, lng: s.lo }) }))
     .filter((s) => s.d <= radius)
     .filter((s) => !osmSpots.some((o) => distM(s, o) < 30));
 
   const spots = [...osmSpots, ...govSpots].sort((a, b) => a.d - b.d);
 
   if (!data && !spots.length) {
-    $('results').innerHTML = `<div class="empty"><div class="big">⚠️</div>검색 서버에 연결하지 못했어요.<br>잠시 후 다시 시도해 주세요.<br><small style="color:#5a6673">${lastErr}</small></div>`;
+    $('results').innerHTML = '<div class="empty"><div class="big">⚠️</div>검색 서버에 연결하지 못했어요.<br>잠시 후 다시 시도해 주세요.</div>';
     $('statusLine').textContent = '검색 실패';
     return;
   }
@@ -571,7 +792,7 @@ async function searchSpots() {
   renderResults(spots, radius);
 }
 
-/* ── 결과 렌더링 ── */
+/* ── 이름/태그 ── */
 function spotName(s) {
   if (s.src === 'gov') return s.name || '흡연구역';
   const t = s.tags;
@@ -589,32 +810,128 @@ function spotTags(s) {
   return out;
 }
 
+/* ── 길찾기 링크 ── */
+function naverWalkUrl(s) {
+  return `https://map.naver.com/p/directions/${currentPos.lng},${currentPos.lat},${encodeURIComponent('출발 위치')}/${s.lng},${s.lat},${encodeURIComponent(spotName(s))}/-/walk`;
+}
+function kakaoWalkUrl(s) {
+  return `https://map.kakao.com/link/to/${encodeURIComponent(spotName(s))},${s.lat},${s.lng}`;
+}
+
+/* ── 경로 표시 ── */
+function clearRoute() {
+  if (routeLine) { routeLine.setMap(null); routeLine = null; }
+  if (infoWin) infoWin.close();
+  $('routeBar').classList.remove('show');
+  document.querySelectorAll('.card.active').forEach((c) => c.classList.remove('active'));
+  if (selectedIdx >= 0 && spotMarkers[selectedIdx]) {
+    setPinIcon(spotMarkers[selectedIdx], currentSpots[selectedIdx], selectedIdx, false);
+  }
+  selectedIdx = -1;
+}
+function setPinIcon(mk, s, i, selected) {
+  mk.setIcon({
+    content: `<div class="pin ${s.src === 'gov' ? 'gov' : ''} ${selected ? 'sel' : ''}"><span>${i + 1}</span></div>`,
+    anchor: new naver.maps.Point(selected ? 19 : 15, selected ? 36 : 28),
+  });
+  mk.setZIndex(selected ? 250 : 100);
+}
+$('rbClose').addEventListener('click', clearRoute);
+
+async function selectSpot(i) {
+  const s = currentSpots[i];
+  const mk = spotMarkers[i];
+  if (!s || !mk) return;
+  clearRoute();
+  selectedIdx = i;
+  setPinIcon(mk, s, i, true);
+  const card = document.querySelectorAll('.card')[i];
+  if (card) {
+    card.classList.add('active');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // 즉시: 직선 점선 + 추정 시간
+  let mins = walkMin(s.d), dist = s.d, real = false;
+  routeLine = new naver.maps.Polyline({
+    map,
+    path: [new naver.maps.LatLng(currentPos.lat, currentPos.lng), new naver.maps.LatLng(s.lat, s.lng)],
+    strokeColor: '#2f6fef',
+    strokeWeight: 4,
+    strokeOpacity: 0.55,
+    strokeStyle: 'shortdash',
+  });
+
+  // 실제 보행 경로 (무료 라우팅)
+  try {
+    const r = await fetch(`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${currentPos.lng},${currentPos.lat};${s.lng},${s.lat}?overview=full&geometries=geojson`);
+    const j = await r.json();
+    if (selectedIdx !== i) return; // 사이에 다른 선택
+    if (j.routes && j.routes[0]) {
+      const rt = j.routes[0];
+      mins = Math.max(1, Math.round(rt.duration / 60));
+      dist = rt.distance;
+      real = true;
+      if (routeLine) routeLine.setMap(null);
+      routeLine = new naver.maps.Polyline({
+        map,
+        path: rt.geometry.coordinates.map((c) => new naver.maps.LatLng(c[1], c[0])),
+        strokeColor: '#2f6fef',
+        strokeWeight: 5,
+        strokeOpacity: 0.85,
+        strokeLineCap: 'round',
+        strokeLineJoin: 'round',
+      });
+    }
+  } catch (e) {}
+
+  // 정보창 + 하단 바
+  infoWin.setContent(`<div class="iw"><b>${spotName(s)}</b><br><span class="g">🚶 도보 ${mins}분</span> · ${fmtDist(dist)}${real ? '' : ' (직선 기준)'}</div>`);
+  infoWin.open(map, mk);
+  $('rbWalk').textContent = `🚶 도보 ${mins}분`;
+  $('rbDist').textContent = fmtDist(dist) + (real ? ' · 실제 경로' : ' · 직선 기준');
+  $('rbNaver').href = naverWalkUrl(s);
+  $('rbKakao').href = kakaoWalkUrl(s);
+  $('routeBar').classList.add('show');
+
+  // 두 지점이 다 보이게
+  const b = new naver.maps.LatLngBounds();
+  b.extend(new naver.maps.LatLng(currentPos.lat, currentPos.lng));
+  b.extend(new naver.maps.LatLng(s.lat, s.lng));
+  map.fitBounds(b, { top: 70, right: 70, bottom: 90, left: 70 });
+}
+
+/* ── 결과 렌더링 ── */
 function renderResults(spots, radius) {
-  spotMarkers.forEach((m) => m.remove());
+  clearRoute();
+  spotMarkers.forEach((m) => m.setMap(null));
   spotMarkers = [];
+  currentSpots = spots;
   $('count').textContent = `${spots.length}곳`;
   $('statusLine').textContent = `반경 ${fmtDist(radius)} 이내 · 가까운 순`;
 
   const wrap = $('results');
   if (!spots.length) {
-    wrap.innerHTML = `<div class="empty"><div class="big">🍃</div>반경 ${fmtDist(radius)} 안에<br>등록된 흡연구역이 없어요.<br><br>반경을 넓히거나 다른 위치를<br>지도에서 클릭해 보세요.<br><br><small style="color:#5a6673">데이터: OpenStreetMap (지역별로 등록량 차이가 있어요)</small></div>`;
+    wrap.innerHTML = `<div class="empty"><div class="big">🍃</div>반경 ${fmtDist(radius)} 안에<br>등록된 흡연구역이 없어요.<br><br>반경을 넓히거나 다른 위치를<br>검색해 보세요.</div>`;
     return;
   }
 
   wrap.innerHTML = '';
   spots.forEach((s, i) => {
-    // 마커
-    const mk = L.marker([s.lat, s.lng], {
-      icon: L.divIcon({ className: '', html: `<div class="smoke-marker${s.src === 'gov' ? ' gov' : ''}"><span>🚬</span></div>`, iconSize: [30, 30], iconAnchor: [15, 28] }),
-    }).addTo(map).bindPopup(`<b>${spotName(s)}</b><br>${fmtDist(s.d)} · 도보 약 ${walkMin(s.d)}분`);
+    const mk = new naver.maps.Marker({
+      position: new naver.maps.LatLng(s.lat, s.lng),
+      map,
+    });
+    setPinIcon(mk, s, i, false);
+    naver.maps.Event.addListener(mk, 'click', () => selectSpot(i));
     spotMarkers.push(mk);
 
-    // 카드
     const card = document.createElement('div');
     card.className = 'card';
     const tags = spotTags(s).map((t) => `<span class="tag">${t}</span>`).join('');
     card.innerHTML = `
       <div class="row1">
+        <div class="num ${s.src === 'gov' ? 'gov' : ''}">${i + 1}</div>
         <div class="name">${spotName(s)}</div>
         <div class="dist">${fmtDist(s.d)}</div>
       </div>
@@ -623,35 +940,22 @@ function renderResults(spots, radius) {
         ${tags}
       </div>
       <div class="links">
-        <a href="https://map.kakao.com/link/to/${encodeURIComponent(spotName(s))},${s.lat},${s.lng}" target="_blank" rel="noopener">카카오맵 길찾기</a>
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=walking" target="_blank" rel="noopener">구글맵</a>
+        <a class="nv" href="${naverWalkUrl(s)}" target="_blank" rel="noopener">네이버 도보 길찾기</a>
+        <a href="${kakaoWalkUrl(s)}" target="_blank" rel="noopener">카카오맵</a>
       </div>`;
     card.addEventListener('click', (e) => {
       if (e.target.tagName === 'A') return;
-      document.querySelectorAll('.card.active').forEach((c) => c.classList.remove('active'));
-      card.classList.add('active');
-      map.setView([s.lat, s.lng], 17);
-      mk.openPopup();
+      selectSpot(i);
     });
     wrap.appendChild(card);
-
-    // 마커 클릭 → 카드 하이라이트
-    mk.on('click', () => {
-      document.querySelectorAll('.card.active').forEach((c) => c.classList.remove('active'));
-      card.classList.add('active');
-      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
   });
 
-  // 전체가 보이게 맞춤 (상위 10곳 기준)
-  const pts = spots.slice(0, 10).map((s) => [s.lat, s.lng]);
-  pts.push([currentPos.lat, currentPos.lng]);
-  map.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
+  // 전체가 보이게 (상위 10곳)
+  const b = new naver.maps.LatLngBounds();
+  b.extend(new naver.maps.LatLng(currentPos.lat, currentPos.lng));
+  spots.slice(0, 10).forEach((s) => b.extend(new naver.maps.LatLng(s.lat, s.lng)));
+  map.fitBounds(b, { top: 60, right: 60, bottom: 60, left: 60 });
 }
-
-/* ── 시작 ── */
-locateMe();
-setTimeout(() => { const b = $('hintBanner'); if (b) b.style.opacity = '0', b.style.transition = 'opacity 1s'; }, 6000);
 </script>
 </body>
 </html>
