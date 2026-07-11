@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>개인정보 처리방침 — 연기공간</title>
+<style>
+  body {
+    font-family: 'Pretendard', -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif;
+    background: #101418;
+    color: #e8edf2;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+    line-height: 1.8;
+    font-size: 14.5px;
+  }
+  h1 { font-size: 22px; margin-bottom: 6px; }
+  .date { color: #8a97a5; font-size: 12.5px; margin-bottom: 28px; }
+  h2 { font-size: 16px; margin: 28px 0 10px; color: #ff7a45; }
+  p, li { color: #c9d2da; }
+  ul { margin-left: 20px; }
+  strong { color: #e8edf2; }
+  .box {
+    background: #1a2027;
+    border: 1px solid #333f4c;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 12px 0;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
+  th, td { border: 1px solid #333f4c; padding: 8px 10px; text-align: left; }
+  th { background: #1a2027; }
+  a { color: #ff7a45; }
+</style>
+</head>
+<body>
+<h1>개인정보 처리방침</h1>
+<p class="date">서비스명: 연기공간 (내 주변 흡연구역 찾기) · 시행일: 2026년 7월 11일</p>
+
+<div class="box">
+  <strong>요약</strong>: 연기공간은 회원가입이 없으며, 이용자의 위치정보를 <strong>서버로 전송하거나 저장하지 않습니다</strong>.
+  위치는 주변 흡연구역을 화면에 표시하기 위해 이용자의 기기 안에서만 일시적으로 사용됩니다.
+</div>
+
+<h2>1. 처리하는 정보와 목적</h2>
+<table>
+  <tr><th>항목</th><th>목적</th><th>보관 위치·기간</th></tr>
+  <tr>
+    <td>기기 위치정보 (GPS 좌표)</td>
+    <td>현재 위치 주변의 흡연구역 검색·표시, 도보 경로 안내</td>
+    <td>서버 전송·저장 없음. 기기 내에서 화면 표시 목적으로만 일시 사용 후 즉시 소멸</td>
+  </tr>
+  <tr>
+    <td>이용자가 직접 입력한 제보 정보 (제보 위치 좌표, 이름, 시설 특징 체크 항목)</td>
+    <td>이용자 본인의 제보 흡연구역 표시</td>
+    <td>이용자 기기 내 저장소(localStorage)에만 저장. 서버 전송 없음. 이용자가 앱에서 직접 삭제 가능</td>
+  </tr>
+</table>
+<p>본 서비스는 회원가입, 로그인, 이름·연락처 등 개인 식별 정보를 수집하지 않습니다.</p>
+
+<h2>2. 위치정보의 처리</h2>
+<ul>
+  <li>위치정보는 이용자가 "내 위치" 기능을 사용할 때 기기 운영체제(또는 토스 앱)의 권한 동의를 받은 후에만 접근합니다.</li>
+  <li>취득한 위치 좌표는 <strong>외부 서버로 전송되지 않으며</strong>, 기기 내에서 지도 표시와 거리 계산에만 사용됩니다.</li>
+  <li>위치 권한을 거부해도 지도 클릭·장소 검색 방식으로 서비스를 이용할 수 있습니다.</li>
+</ul>
+
+<h2>3. 제3자 제공 및 외부 서비스</h2>
+<p>본 서비스는 화면 구성을 위해 아래 외부 서비스를 호출합니다. 이 과정에서 해당 사업자에게 통상적인 통신 기록(IP 주소, 요청 좌표 범위 등)이 전달될 수 있습니다.</p>
+<ul>
+  <li><strong>네이버 지도</strong> (네이버클라우드): 지도 화면 표시</li>
+  <li><strong>OpenStreetMap 관련 공개 서버</strong> (Overpass, Nominatim, OSRM): 흡연구역 데이터 조회, 장소 검색, 도보 경로 계산</li>
+</ul>
+<p>이 외에 개인정보를 제3자에게 제공하거나 처리를 위탁하지 않습니다.</p>
+
+<h2>4. 이용자의 권리</h2>
+<ul>
+  <li>위치 권한은 기기 설정(또는 토스 앱 설정)에서 언제든지 철회할 수 있습니다.</li>
+  <li>기기에 저장된 제보 정보는 앱 내 삭제 버튼 또는 브라우저 데이터 삭제로 완전히 제거할 수 있습니다.</li>
+</ul>
+
+<h2>5. 아동의 개인정보</h2>
+<p>본 서비스는 성인 흡연자의 흡연구역 이용 편의를 위한 서비스로, 만 19세 미만 아동·청소년을 대상으로 하지 않으며 아동의 개인정보를 의도적으로 수집하지 않습니다.</p>
+
+<h2>6. 문의처</h2>
+<p>개인정보 관련 문의: <a href="mailto:s.seohyunbum@gmail.com">s.seohyunbum@gmail.com</a></p>
+
+<h2>7. 고지 의무</h2>
+<p>본 방침의 내용이 변경되는 경우 서비스 화면을 통해 공지합니다.</p>
+</body>
+</html>

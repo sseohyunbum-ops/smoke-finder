@@ -839,6 +839,25 @@ async function locateMe(retry) {
   const btn = $('btnLocate');
   btn.disabled = true;
   $('statusLine').textContent = '위치를 확인하는 중…';
+  // 토스 미니앱 환경: SDK 위치 API 우선 사용 (toss-adapter가 주입)
+  if (window.TossLocation) {
+    try {
+      const loc = await window.TossLocation.getCurrentLocation();
+      const lat = loc && (loc.latitude ?? (loc.coords && loc.coords.latitude));
+      const lng = loc && (loc.longitude ?? (loc.coords && loc.coords.longitude));
+      btn.disabled = false;
+      if (lat != null && lng != null) {
+        setPosition(lat, lng, '내 위치');
+        toast('📍 현재 위치를 찾았어요');
+        return;
+      }
+    } catch (e) {
+      btn.disabled = false;
+      toast('위치를 가져올 수 없어요 — 지도를 클릭하거나 장소를 검색해 보세요');
+      if (!currentPos) setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
+      return;
+    }
+  }
   if (!navigator.geolocation) {
     toast('이 브라우저는 위치 기능을 지원하지 않아요.');
     btn.disabled = false;
