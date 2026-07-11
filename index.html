@@ -718,7 +718,29 @@ function initApp() {
     if (reportOpen) { setReportPos(e.coord.lat(), e.coord.lng()); return; }
     setPosition(e.coord.lat(), e.coord.lng(), '지도에서 선택한 위치');
   });
-  locateMe();
+  // 데모 모드: ?demo=lat,lng[&sel=n][&report=1] — 스크린샷·시연용 시나리오 자동 실행
+  const qp = new URLSearchParams(location.search);
+  if (qp.has('demo')) {
+    const [la, lo] = (qp.get('demo') || '').split(',').map(Number);
+    setPosition(la || DEFAULT_POS.lat, lo || DEFAULT_POS.lng, '내 위치');
+    if (qp.has('sel')) {
+      const n = +qp.get('sel') || 0;
+      const t = setInterval(() => {
+        if (currentSpots.length > n) { clearInterval(t); selectSpot(n); }
+      }, 500);
+    }
+    if (qp.has('report')) {
+      setTimeout(() => {
+        openReport();
+        setReportPos((la || DEFAULT_POS.lat) + 0.0008, (lo || DEFAULT_POS.lng) + 0.001);
+        $('rpName').value = '회사 뒤 공터';
+        $('rpBin').checked = true;
+        $('rpNoSign').checked = true;
+      }, 2500);
+    }
+  } else {
+    locateMe();
+  }
 }
 
 /* ── 사용자 제보 ── */

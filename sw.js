@@ -1,4 +1,4 @@
-const CACHE = 'yeongi-v7';
+const CACHE = 'yeongi-v8';
 const SHELL = [
   './',
   './index.html',
