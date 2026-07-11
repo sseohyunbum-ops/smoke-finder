@@ -957,7 +957,11 @@ async function searchSpots() {
   let data = null;
   for (const ep of OVERPASS_ENDPOINTS) {
     try {
-      const res = await fetch(ep, { method: 'POST', body: 'data=' + encodeURIComponent(query) });
+      const res = await fetch(ep, {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query),
+        signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined,
+      });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       data = await res.json();
       break;
