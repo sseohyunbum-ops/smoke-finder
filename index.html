@@ -234,6 +234,46 @@
     white-space: nowrap;
   }
 
+  /* ── 위치 권한 안내 모달 ── */
+  #permModal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 3000;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #permModal.show { display: flex; }
+  #permModal .box {
+    background: var(--panel);
+    border: 1px solid #333f4c;
+    border-radius: 18px;
+    padding: 22px 20px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  #permModal h3 { font-size: 16px; margin-bottom: 4px; }
+  #permModal .sub { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+  #permModal ol {
+    margin: 0 0 16px 18px;
+    font-size: 13.5px;
+    line-height: 2;
+  }
+  #permModal ol b { color: var(--accent); }
+  #permModal .btns { display: flex; gap: 8px; }
+  #permModal button {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 0;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #permModal .retry { background: var(--accent); color: #fff; }
+  #permModal .close { background: var(--panel2); color: var(--text); border: 1px solid #333f4c; }
+
   /* ── 모바일 ── */
   @media (max-width: 720px) {
     main { flex-direction: column; }
@@ -287,6 +327,18 @@
 </main>
 
 <div id="toast"></div>
+
+<div id="permModal">
+  <div class="box">
+    <h3>📍 위치 권한이 꺼져 있어요</h3>
+    <p class="sub">이전에 "차단"을 선택하면 브라우저가 팝업을 다시 띄우지 않아요. 아래처럼 해제한 뒤 다시 시도해 주세요.</p>
+    <ol id="permSteps"></ol>
+    <div class="btns">
+      <button class="retry" id="permRetry">권한 허용했어요, 다시 시도</button>
+      <button class="close" id="permClose">지도에서 직접 선택</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -354,8 +406,44 @@ function setPosition(lat, lng, label) {
   searchSpots();
 }
 
+/* ── 위치 권한 안내 모달 ── */
+function permSteps() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/.test(ua)) {
+    return [
+      '아이폰 <b>설정</b> 앱 → <b>개인정보 보호 및 보안</b> → <b>위치 서비스</b> 켜기',
+      '같은 화면에서 <b>Safari 웹사이트</b> → <b>앱을 사용하는 동안</b> 선택',
+      'Safari 주소창 왼쪽 <b>ᴀA</b> → <b>웹사이트 설정</b> → 위치 <b>허용</b>',
+    ];
+  }
+  if (/Android/.test(ua)) {
+    return [
+      '주소창 왼쪽 <b>자물쇠(🔒)</b> 아이콘 탭',
+      '<b>권한</b> → <b>위치</b> → <b>허용</b>',
+      '휴대폰 설정에서 <b>위치(GPS)</b>가 켜져 있는지 확인',
+    ];
+  }
+  return [
+    '주소창 왼쪽 <b>자물쇠(🔒)</b> 아이콘 클릭',
+    '<b>사이트 설정</b> → <b>위치</b> → <b>허용</b>으로 변경',
+    '페이지 새로고침 후 다시 시도',
+  ];
+}
+function showPermGuide() {
+  $('permSteps').innerHTML = permSteps().map((s) => `<li>${s}</li>`).join('');
+  $('permModal').classList.add('show');
+}
+$('permRetry').addEventListener('click', () => {
+  $('permModal').classList.remove('show');
+  locateMe(true);
+});
+$('permClose').addEventListener('click', () => {
+  $('permModal').classList.remove('show');
+  toast('지도를 클릭하면 그 지점 주변을 검색해요');
+});
+
 /* ── 현재 위치 ── */
-function locateMe() {
+async function locateMe(retry) {
   const btn = $('btnLocate');
   btn.disabled = true;
   $('statusLine').textContent = '위치를 확인하는 중…';
@@ -365,6 +453,19 @@ function locateMe() {
     setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
     return;
   }
+  // 권한이 이미 차단 상태면 브라우저가 팝업을 안 띄우므로 해제 안내를 먼저 보여준다
+  if (navigator.permissions && navigator.permissions.query) {
+    try {
+      const st = await navigator.permissions.query({ name: 'geolocation' });
+      if (st.state === 'denied') {
+        btn.disabled = false;
+        $('statusLine').textContent = '위치 권한 차단됨';
+        showPermGuide();
+        if (!currentPos) setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
+        return;
+      }
+    } catch (e) { /* 미지원 브라우저는 그냥 진행 */ }
+  }
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       btn.disabled = false;
@@ -373,18 +474,23 @@ function locateMe() {
     },
     (err) => {
       btn.disabled = false;
+      if (err.code === 1) {
+        $('statusLine').textContent = '위치 권한 차단됨';
+        showPermGuide();
+        if (!currentPos) setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
+        return;
+      }
       const msgs = {
-        1: '위치 권한이 거부되었어요. 지도를 클릭해서 위치를 지정할 수 있어요.',
         2: '위치를 가져올 수 없어요. 지도를 클릭해 검색하세요.',
         3: '위치 확인이 시간 초과됐어요. 다시 시도하거나 지도를 클릭하세요.',
       };
       toast(msgs[err.code] || '위치 확인 실패. 지도를 클릭해 검색하세요.');
-      setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
+      if (!currentPos) setPosition(DEFAULT_POS.lat, DEFAULT_POS.lng, '기본 위치 (서울시청)');
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: retry ? 0 : 60000 }
   );
 }
-$('btnLocate').addEventListener('click', locateMe);
+$('btnLocate').addEventListener('click', () => locateMe());
 $('radiusSel').addEventListener('change', () => { if (currentPos) searchSpots(); });
 
 /* ── 거리 계산 (하버사인) ── */
