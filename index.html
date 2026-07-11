@@ -406,6 +406,121 @@
   #permModal .retry { background: var(--accent); color: #fff; }
   #permModal .close { background: var(--panel2); color: var(--text); border: 1px solid #333f4c; }
 
+  /* ── 제보 ── */
+  .btn-report {
+    background: var(--panel2);
+    color: #c4b5fd;
+    border: 1px solid #6d5bb8;
+    border-radius: 9px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .btn-report:hover { border-color: #a78bfa; }
+  #reportPanel {
+    position: fixed;
+    left: 50%; bottom: 0;
+    transform: translate(-50%, 105%);
+    width: min(460px, 100%);
+    background: var(--panel);
+    border: 1px solid #333f4c;
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    padding: 16px 18px 18px;
+    z-index: 2500;
+    transition: transform .3s cubic-bezier(.2,.9,.3,1.1);
+    max-height: 78vh;
+    overflow-y: auto;
+    box-shadow: 0 -12px 50px rgba(0,0,0,.5);
+  }
+  #reportPanel.show { transform: translate(-50%, 0); }
+  #reportPanel h3 { font-size: 15px; margin-bottom: 2px; }
+  #reportPanel .sub { font-size: 12px; color: var(--muted); }
+  .notice {
+    background: rgba(255,122,69,.08);
+    border: 1px solid rgba(255,122,69,.4);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.75;
+    color: #f2c4ae;
+    margin: 12px 0;
+  }
+  .notice b { color: var(--accent); }
+  .rp-pos {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px;
+  }
+  .rp-pos button {
+    background: var(--panel2);
+    border: 1px solid #333f4c;
+    border-radius: 8px;
+    color: var(--text);
+    padding: 7px 11px;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .rp-pos button:hover { border-color: var(--accent); }
+  #rpPos { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  #rpName {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid #333f4c;
+    border-radius: 9px;
+    padding: 9px 11px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    margin-bottom: 10px;
+  }
+  #rpName:focus { border-color: var(--accent); }
+  .rp-checks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+  .rp-checks label, .rp-agree {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--panel2);
+    border: 1px solid #333f4c;
+    border-radius: 9px;
+    padding: 9px 10px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .rp-checks input, .rp-agree input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .rp-agree { margin-bottom: 12px; border-color: rgba(255,122,69,.4); }
+  .rp-btns { display: flex; gap: 8px; }
+  .rp-btns button {
+    flex: 1; border: none; border-radius: 10px;
+    padding: 11px 0; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .rp-btns .submit { background: #7c5cd6; color: #fff; }
+  .rp-btns .cancel { background: var(--panel2); color: var(--text); border: 1px solid #333f4c; }
+  .pin.user { background: #a78bfa; border-style: dashed; }
+  .card .num.user { background: #a78bfa; }
+  .card .disclaim {
+    margin-top: 8px;
+    background: rgba(167,139,250,.1);
+    border: 1px solid rgba(167,139,250,.35);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: #c9bdf5;
+  }
+  .card .links a.del { border-color: #7a3a3a; color: #f0a0a0; }
+  .iw .warn {
+    margin-top: 6px;
+    font-size: 11.5px;
+    color: #c9bdf5;
+    line-height: 1.5;
+  }
+
   @media (max-width: 720px) {
     main { flex-direction: column; }
     #mapWrap { flex: 1.25; }
@@ -441,6 +556,7 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
     내 위치
   </button>
+  <button class="btn-report" id="btnReport">➕ 제보</button>
 </header>
 
 <div class="searchbar">
@@ -488,6 +604,33 @@
       <button class="retry" id="permRetry">권한 허용했어요, 다시 시도</button>
       <button class="close" id="permClose">지도에서 직접 선택</button>
     </div>
+  </div>
+</div>
+
+<div id="reportPanel">
+  <h3>➕ 흡연구역 제보</h3>
+  <p class="sub">공공데이터에 없는 흡연구역을 등록해요. 이 기기에 저장됩니다.</p>
+  <div class="notice">
+    <b>등록 전 꼭 확인해 주세요</b><br>
+    · <b>금연 표시</b>(안내판·스티커)가 없는 곳만 등록해 주세요.<br>
+    · <b>법령·조례상 금연구역이 아닌 곳</b>만 등록해 주세요. 예) 버스정류소·지하철역 출입구 주변 10m(지자체 조례), 어린이집·유치원 경계 10m 이내(국민건강증진법), 학교 주변(조례에 따라 10~50m), 의료기관·관공서·도시공원 등 지정 금연구역.<br>
+    · 금연구역 내 흡연은 과태료 부과 대상이 될 수 있어요.
+  </div>
+  <div class="rp-pos">
+    <button id="rpUseMe">📍 내 위치 사용</button>
+    <span id="rpPos">지도를 클릭해 위치를 지정하거나, 내 위치를 사용하세요</span>
+  </div>
+  <input id="rpName" placeholder="이름 (선택) — 예: ○○빌딩 뒤편 공터" maxlength="40">
+  <div class="rp-checks">
+    <label><input type="checkbox" id="rpBin"> 🗑 재떨이 있음</label>
+    <label><input type="checkbox" id="rpNoSign"> 🚭 금연표시 없음 확인</label>
+    <label><input type="checkbox" id="rpShelter"> 🏠 지붕·부스 있음</label>
+    <label><input type="checkbox" id="rpLight"> 💡 야간 조명 있음</label>
+  </div>
+  <label class="rp-agree"><input type="checkbox" id="rpAgree"> 위 안내를 확인했으며, 금연 표시가 없고 법령상 금연구역이 아닌 곳입니다.</label>
+  <div class="rp-btns">
+    <button class="submit" id="rpSubmit">등록</button>
+    <button class="cancel" id="rpCancel">취소</button>
   </div>
 </div>
 
@@ -572,10 +715,69 @@ function initApp() {
     pixelOffset: new naver.maps.Point(0, -12),
   });
   naver.maps.Event.addListener(map, 'click', (e) => {
+    if (reportOpen) { setReportPos(e.coord.lat(), e.coord.lng()); return; }
     setPosition(e.coord.lat(), e.coord.lng(), '지도에서 선택한 위치');
   });
   locateMe();
 }
+
+/* ── 사용자 제보 ── */
+let userSpots = [];
+try { userSpots = JSON.parse(localStorage.getItem('userSpots') || '[]'); } catch (e) {}
+function saveUserSpots() { localStorage.setItem('userSpots', JSON.stringify(userSpots)); }
+
+let reportOpen = false, reportPos = null, reportMk = null;
+function openReport() {
+  reportOpen = true;
+  reportPos = null;
+  $('rpName').value = '';
+  ['rpBin','rpNoSign','rpShelter','rpLight','rpAgree'].forEach((id) => { $(id).checked = false; });
+  $('rpPos').textContent = '지도를 클릭해 위치를 지정하거나, 내 위치를 사용하세요';
+  $('reportPanel').classList.add('show');
+  $('btnReport').textContent = '✕ 닫기';
+  toast('지도를 클릭하면 제보 위치가 지정돼요');
+}
+function closeReport() {
+  reportOpen = false;
+  if (reportMk) { reportMk.setMap(null); reportMk = null; }
+  $('reportPanel').classList.remove('show');
+  $('btnReport').textContent = '➕ 제보';
+}
+function setReportPos(lat, lng) {
+  reportPos = { lat, lng };
+  $('rpPos').textContent = `✅ 위치 지정됨 (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+  if (reportMk) reportMk.setMap(null);
+  reportMk = new naver.maps.Marker({
+    position: new naver.maps.LatLng(lat, lng),
+    map,
+    zIndex: 400,
+    icon: { content: '<div class="pin user"><span>+</span></div>', anchor: new naver.maps.Point(15, 28) },
+  });
+}
+$('btnReport').addEventListener('click', () => { reportOpen ? closeReport() : openReport(); });
+$('rpCancel').addEventListener('click', closeReport);
+$('rpUseMe').addEventListener('click', () => {
+  if (!currentPos) { toast('위치를 먼저 확인해 주세요'); return; }
+  setReportPos(currentPos.lat, currentPos.lng);
+});
+$('rpSubmit').addEventListener('click', () => {
+  if (!reportPos) { toast('위치를 먼저 지정해 주세요 (지도 클릭 또는 내 위치)'); return; }
+  if (!$('rpAgree').checked) { toast('안내 확인 체크가 필요해요'); return; }
+  userSpots.push({
+    n: $('rpName').value.trim() || '제보 흡연구역',
+    la: +reportPos.lat.toFixed(6),
+    lo: +reportPos.lng.toFixed(6),
+    bin: $('rpBin').checked,
+    ns: $('rpNoSign').checked,
+    sh: $('rpShelter').checked,
+    li: $('rpLight').checked,
+    t: Date.now(),
+  });
+  saveUserSpots();
+  closeReport();
+  toast('✅ 제보가 등록됐어요 (이 기기에 저장)');
+  if (currentPos) searchSpots();
+});
 
 /* ── 위치 설정 + 검색 ── */
 function setPosition(lat, lng, label) {
@@ -780,7 +982,11 @@ async function searchSpots() {
     .filter((s) => s.d <= radius)
     .filter((s) => !osmSpots.some((o) => distM(s, o) < 30));
 
-  const spots = [...osmSpots, ...govSpots].sort((a, b) => a.d - b.d);
+  const mySpots = userSpots
+    .map((u, idx) => ({ lat: u.la, lng: u.lo, name: u.n, utags: u, tags: {}, src: 'user', uidx: idx, d: distM(currentPos, { lat: u.la, lng: u.lo }) }))
+    .filter((s) => s.d <= radius);
+
+  const spots = [...osmSpots, ...govSpots, ...mySpots].sort((a, b) => a.d - b.d);
 
   if (!data && !spots.length) {
     $('results').innerHTML = '<div class="empty"><div class="big">⚠️</div>검색 서버에 연결하지 못했어요.<br>잠시 후 다시 시도해 주세요.</div>';
@@ -794,12 +1000,21 @@ async function searchSpots() {
 
 /* ── 이름/태그 ── */
 function spotName(s) {
-  if (s.src === 'gov') return s.name || '흡연구역';
+  if (s.src === 'gov' || s.src === 'user') return s.name || '흡연구역';
   const t = s.tags;
   return t['name:ko'] || t.name || (t.shelter === 'yes' ? '흡연 부스' : '흡연구역');
 }
 function spotTags(s) {
   const out = [];
+  if (s.src === 'user') {
+    out.push('👤 사용자 제보');
+    const u = s.utags;
+    if (u.bin) out.push('🗑 재떨이 있음');
+    if (u.ns) out.push('🚭 금연표시 없음');
+    if (u.sh) out.push('🏠 지붕·부스');
+    if (u.li) out.push('💡 조명');
+    return out;
+  }
   if (s.src === 'gov') { out.push('🏛 공공데이터'); return out; }
   const t = s.tags;
   if (t.shelter === 'yes' || t.covered === 'yes') out.push('🏠 지붕 있음');
@@ -830,8 +1045,9 @@ function clearRoute() {
   selectedIdx = -1;
 }
 function setPinIcon(mk, s, i, selected) {
+  const cls = s.src === 'gov' ? 'gov' : s.src === 'user' ? 'user' : '';
   mk.setIcon({
-    content: `<div class="pin ${s.src === 'gov' ? 'gov' : ''} ${selected ? 'sel' : ''}"><span>${i + 1}</span></div>`,
+    content: `<div class="pin ${cls} ${selected ? 'sel' : ''}"><span>${i + 1}</span></div>`,
     anchor: new naver.maps.Point(selected ? 19 : 15, selected ? 36 : 28),
   });
   mk.setZIndex(selected ? 250 : 100);
@@ -886,7 +1102,8 @@ async function selectSpot(i) {
   } catch (e) {}
 
   // 정보창 + 하단 바
-  infoWin.setContent(`<div class="iw"><b>${spotName(s)}</b><br><span class="g">🚶 도보 ${mins}분</span> · ${fmtDist(dist)}${real ? '' : ' (직선 기준)'}</div>`);
+  const warn = s.src === 'user' ? '<div class="warn">⚠️ 사용자가 제보한 위치로,<br>실제 흡연구역이 아닐 수 있어요.</div>' : '';
+  infoWin.setContent(`<div class="iw"><b>${spotName(s)}</b><br><span class="g">🚶 도보 ${mins}분</span> · ${fmtDist(dist)}${real ? '' : ' (직선 기준)'}${warn}</div>`);
   infoWin.open(map, mk);
   $('rbWalk').textContent = `🚶 도보 ${mins}분`;
   $('rbDist').textContent = fmtDist(dist) + (real ? ' · 실제 경로' : ' · 직선 기준');
@@ -929,9 +1146,12 @@ function renderResults(spots, radius) {
     const card = document.createElement('div');
     card.className = 'card';
     const tags = spotTags(s).map((t) => `<span class="tag">${t}</span>`).join('');
+    const numCls = s.src === 'gov' ? 'gov' : s.src === 'user' ? 'user' : '';
+    const delBtn = s.src === 'user' ? '<a class="del">삭제</a>' : '';
+    const disclaim = s.src === 'user' ? '<div class="disclaim">⚠️ 사용자가 제보한 위치로, 실제 흡연구역이 아닐 수 있어요.</div>' : '';
     card.innerHTML = `
       <div class="row1">
-        <div class="num ${s.src === 'gov' ? 'gov' : ''}">${i + 1}</div>
+        <div class="num ${numCls}">${i + 1}</div>
         <div class="name">${spotName(s)}</div>
         <div class="dist">${fmtDist(s.d)}</div>
       </div>
@@ -939,14 +1159,32 @@ function renderResults(spots, radius) {
         <span class="walk">🚶 도보 약 ${walkMin(s.d)}분</span>
         ${tags}
       </div>
+      ${disclaim}
       <div class="links">
         <a class="nv" href="${naverWalkUrl(s)}" target="_blank" rel="noopener">네이버 도보 길찾기</a>
         <a href="${kakaoWalkUrl(s)}" target="_blank" rel="noopener">카카오맵</a>
+        ${delBtn}
       </div>`;
     card.addEventListener('click', (e) => {
       if (e.target.tagName === 'A') return;
       selectSpot(i);
     });
+    const del = card.querySelector('.del');
+    if (del) {
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (del.dataset.arm) {
+          userSpots.splice(s.uidx, 1);
+          saveUserSpots();
+          toast('제보를 삭제했어요');
+          searchSpots();
+        } else {
+          del.dataset.arm = '1';
+          del.textContent = '한 번 더 누르면 삭제';
+          setTimeout(() => { del.dataset.arm = ''; del.textContent = '삭제'; }, 2500);
+        }
+      });
+    }
     wrap.appendChild(card);
   });
 
