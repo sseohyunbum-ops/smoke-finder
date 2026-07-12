@@ -345,7 +345,8 @@
   #toast.show { transform: translateX(-50%) translateY(0); }
 
   /* 지도 마커 (HTML 아이콘) */
-  .me-wrap { position: relative; width: 22px; height: 22px; }
+  .me-wrap { position: relative; width: 22px; height: 22px; pointer-events: none; }
+  .me-wrap * { pointer-events: none; }
   .me-pulse {
     position: absolute; inset: -14px;
     border-radius: 50%;
@@ -882,7 +883,8 @@ function setPosition(lat, lng, label) {
   meMarker = new naver.maps.Marker({
     position: new naver.maps.LatLng(lat, lng),
     map,
-    zIndex: 300,
+    zIndex: 90,
+    clickable: false,
     icon: {
       content: `<div class="me-wrap"><div class="me-pulse"></div><div class="me-dot"></div><div class="me-label">${label === '내 위치' ? '내 위치' : '검색 위치'}</div></div>`,
       anchor: new naver.maps.Point(11, 11),
