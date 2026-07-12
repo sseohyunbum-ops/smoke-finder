@@ -25,6 +25,7 @@
     --naver: #03c75a;
     --blue: #2f6fef;
     --radius: 14px;
+    --binset: 0px; /* 하단 광고 배너 삽입 시 배너 높이로 변경 (예: 60px) */
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
@@ -155,7 +156,7 @@
   #routeBar {
     display: none;
     position: absolute;
-    left: 50%; bottom: 18px;
+    left: 50%; bottom: calc(18px + var(--binset));
     transform: translateX(-50%);
     background: rgba(20,26,32,.95);
     backdrop-filter: blur(8px);
@@ -185,6 +186,30 @@
     font-size: 15px; cursor: pointer; padding: 0 2px;
   }
 
+  /* 지도 위 결과 개수 칩 (모바일: 목록 열기 버튼) */
+  #listChip {
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: calc(64px + var(--binset));
+    transform: translateX(-50%);
+    background: rgba(20,26,32,.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid #333f4c;
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    z-index: 480;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    white-space: nowrap;
+  }
+  #listChip.show { display: block; }
+  #listChip b { color: var(--accent); }
+  @media (min-width: 721px) { #listChip { display: none !important; } }
+
   #authFail {
     display: none;
     position: absolute; inset: 0;
@@ -208,8 +233,22 @@
     min-height: 0;
   }
   aside .list-head {
+    display: flex;
+    align-items: flex-start;
     padding: 14px 16px 10px;
     border-bottom: 1px solid #2b3540;
+    flex-shrink: 0;
+  }
+  aside .list-head .lh-text { flex: 1; min-width: 0; }
+  aside .lclose {
+    display: none;
+    background: var(--panel2);
+    border: 1px solid #333f4c;
+    color: var(--muted);
+    border-radius: 8px;
+    width: 30px; height: 30px;
+    font-size: 14px;
+    cursor: pointer;
     flex-shrink: 0;
   }
   aside .list-head h2 { font-size: 14px; font-weight: 700; }
@@ -528,13 +567,24 @@
 
   @media (max-width: 720px) {
     main { flex-direction: column; }
-    #mapWrap { flex: 1.25; }
+    #mapWrap { flex: 1; }
+    /* 모바일: 리스트는 기본 숨김 바텀시트 — 지도 전체 화면 */
     aside {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
       width: 100%;
-      flex: 1;
+      height: 60vh;
       border-left: none;
-      border-top: 1px solid #2b3540;
+      border-top: 1px solid #333f4c;
+      border-radius: 18px 18px 0 0;
+      transform: translateY(105%);
+      transition: transform .3s cubic-bezier(.2,.9,.3,1.05);
+      z-index: 900;
+      box-shadow: 0 -12px 50px rgba(0,0,0,.5);
+      padding-bottom: var(--binset);
     }
+    aside.show { transform: translateY(0); }
+    aside .lclose { display: block; }
     header h1 { font-size: 14px; }
     header p { display: none; }
     header {
@@ -586,6 +636,7 @@
 <main>
   <div id="mapWrap">
     <div id="map"></div>
+    <div id="listChip"></div>
     <div id="routeBar">
       <span class="walk" id="rbWalk"></span>
       <span class="dist" id="rbDist"></span>
@@ -602,8 +653,11 @@
   </div>
   <aside>
     <div class="list-head">
-      <h2>주변 흡연구역 <span id="count">–</span></h2>
-      <p id="statusLine">위치를 확인하는 중…</p>
+      <div class="lh-text">
+        <h2>주변 흡연구역 <span id="count">–</span></h2>
+        <p id="statusLine">위치를 확인하는 중…</p>
+      </div>
+      <button class="lclose" id="listClose">✕</button>
     </div>
     <div id="results">
       <div class="loading">⏳ 지도를 불러오는 중…</div>
@@ -720,7 +774,7 @@ function toast(msg) {
 function initApp() {
   map = new naver.maps.Map('map', {
     center: new naver.maps.LatLng(DEFAULT_POS.lat, DEFAULT_POS.lng),
-    zoom: 15,
+    zoom: 16,
     minZoom: 7,
     mapDataControl: false,
     scaleControl: false,
@@ -835,9 +889,23 @@ function setPosition(lat, lng, label) {
     },
   });
   map.setCenter(new naver.maps.LatLng(lat, lng));
-  if (map.getZoom() < 14) map.setZoom(15);
+  if (map.getZoom() < 15) map.setZoom(16);
   searchSpots();
 }
+
+/* ── 결과 리스트 바텀시트 (모바일) ── */
+const isMobile = () => window.matchMedia('(max-width: 720px)').matches;
+function openSheet() {
+  if (isMobile()) document.querySelector('aside').classList.add('show');
+}
+function closeSheet() {
+  document.querySelector('aside').classList.remove('show');
+}
+$('listClose').addEventListener('click', closeSheet);
+$('listChip').addEventListener('click', () => {
+  const a = document.querySelector('aside');
+  a.classList.contains('show') ? closeSheet() : a.classList.add('show');
+});
 
 /* ── 위치 권한 안내 ── */
 function permSteps() {
@@ -1156,6 +1224,7 @@ async function selectSpot(i) {
   clearRoute();
   selectedIdx = i;
   setPinIcon(mk, s, i, true);
+  openSheet();
   const card = document.querySelectorAll('.card')[i];
   if (card) {
     card.classList.add('active');
@@ -1221,6 +1290,8 @@ function renderResults(spots, radius) {
   currentSpots = spots;
   $('count').textContent = `${spots.length}곳`;
   $('statusLine').textContent = `반경 ${fmtDist(radius)} 이내 · 가까운 순`;
+  $('listChip').innerHTML = `📋 주변 흡연구역 <b>${spots.length}곳</b> · 목록 보기`;
+  $('listChip').classList.add('show');
 
   const wrap = $('results');
   if (!spots.length) {
