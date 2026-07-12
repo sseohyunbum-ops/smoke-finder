@@ -775,7 +775,7 @@ function toast(msg) {
 function initApp() {
   map = new naver.maps.Map('map', {
     center: new naver.maps.LatLng(DEFAULT_POS.lat, DEFAULT_POS.lng),
-    zoom: 16,
+    zoom: 17,
     minZoom: 7,
     mapDataControl: false,
     scaleControl: false,
@@ -891,7 +891,7 @@ function setPosition(lat, lng, label) {
     },
   });
   map.setCenter(new naver.maps.LatLng(lat, lng));
-  if (map.getZoom() < 15) map.setZoom(16);
+  if (map.getZoom() < 16) map.setZoom(17);
   searchSpots();
 }
 
